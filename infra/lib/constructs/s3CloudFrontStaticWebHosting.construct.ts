@@ -24,7 +24,6 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         const bucket = this.createS3Bucket(_props.s3BucketConfig);
         const cloudFrontDistribution :Distribution= this.createCloudFrontDistribution(_props.cloudFrontDistribution,bucket)
 
-
     }
     private createS3Bucket(_props:IS3BucketConfig){
         const bucket : Bucket = new Bucket(this, _props.bucketId, {
@@ -37,7 +36,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         return bucket;
     }
     private createCloudFrontDistribution(_props:ICloudFrontDistribution,s3Bucket:Bucket){
-        const distribution = new Distribution(this, "TecoWebsiteDistribution", {
+        const distribution = new Distribution(this, _props.cloudFrontId, {
             defaultBehavior: {
                 allowedMethods: AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
                 compress: true,
@@ -58,6 +57,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
 
         return distribution;
     }
+
 
 
 

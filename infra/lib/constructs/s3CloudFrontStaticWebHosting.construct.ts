@@ -1,8 +1,10 @@
 import {Construct} from "constructs";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
-import {Duration, RemovalPolicy} from "aws-cdk-lib";
+import {Duration, RemovalPolicy, SecretValue} from "aws-cdk-lib";
 import {AllowedMethods, Distribution, SecurityPolicyProtocol, ViewerProtocolPolicy} from "aws-cdk-lib/aws-cloudfront";
 import {S3Origin} from "aws-cdk-lib/aws-cloudfront-origins";
+import {Artifact, Pipeline} from "aws-cdk-lib/aws-codepipeline";
+import {GitHubSourceAction, GitHubTrigger} from "aws-cdk-lib/aws-codepipeline-actions";
 
 interface IS3BucketConfig{
     bucketId:string,
@@ -22,7 +24,9 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
 
 
         const bucket = this.createS3Bucket(_props.s3BucketConfig);
-        const cloudFrontDistribution :Distribution= this.createCloudFrontDistribution(_props.cloudFrontDistribution,bucket)
+        const cloudFrontDistribution :Distribution= this.createCloudFrontDistribution(_props.cloudFrontDistribution,bucket);
+
+        const pipeline  = this.buildingS3BucketPipeline();
 
     }
     private createS3Bucket(_props:IS3BucketConfig){
@@ -56,6 +60,40 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         });
 
         return distribution;
+    }
+
+    private buildingS3BucketPipeline(){
+
+        const outputSources : Artifact = new Artifact();
+        const outputWebsite :Artifact= new Artifact();
+
+
+        const pipeline : Pipeline = new Pipeline(this, 'MyFirstPipeline', {
+            pipelineName: 'MyPipeline',
+        });
+
+        pipeline.addStage({
+            stageName:"Source",
+            actions:[
+                new GitHubSourceAction({
+                    actionName: 'GitHub_Source',
+                    owner: 'awslabs',
+                    repo: 'aws-cdk',
+                    // oauthToken: "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",
+                    oauthToken: SecretValue.secretsManager("GitHubToken"),
+                    output: outputSources,
+                    branch: 'develop', // default: 'master'
+                    trigger:GitHubTrigger.WEBHOOK
+                })
+            ]
+        });
+
+
+        return pipeline;
+
+
+
+
     }
 
 

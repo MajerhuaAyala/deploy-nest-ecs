@@ -52,8 +52,8 @@ export class NextJsStaticAppStack extends Stack{
             actions:[
                 new codepipeline_actions.GitHubSourceAction({
                     actionName: 'GitHub_Source',
-                    owner: 'awslabs',
-                    repo: 'aws-cdk',
+                    owner: 'dkmostafa',
+                    repo: 'dev-samples',
                     //@ts-ignore
                     oauthToken: "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",
                     output: outputSources,

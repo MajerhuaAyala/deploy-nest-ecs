@@ -5,6 +5,8 @@ import {AllowedMethods, Distribution, SecurityPolicyProtocol, ViewerProtocolPoli
 import {S3Origin} from "aws-cdk-lib/aws-cloudfront-origins";
 import {Artifact, Pipeline} from "aws-cdk-lib/aws-codepipeline";
 import {GitHubSourceAction, GitHubTrigger} from "aws-cdk-lib/aws-codepipeline-actions";
+import * as codepipeline_actions from "aws-cdk-lib/aws-codepipeline-actions";
+import * as codebuild from "aws-cdk-lib/aws-codebuild";
 
 interface IS3BucketConfig{
     bucketId:string,
@@ -77,16 +79,36 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
             actions:[
                 new GitHubSourceAction({
                     actionName: 'GitHub_Source',
-                    owner: 'awslabs',
-                    repo: 'aws-cdk',
+                    owner: 'dkmostafa',
+                    repo: 'dev-samples',
                     // oauthToken: "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",
                     oauthToken: SecretValue.secretsManager("GitHubToken"),
                     output: outputSources,
-                    branch: 'develop', // default: 'master'
+                    branch: 'main', // default: 'master'
                     trigger:GitHubTrigger.WEBHOOK
                 })
             ]
         });
+
+        pipeline.addStage({
+            stageName: "Build",
+            actions: [
+                // AWS CodePipeline action to run CodeBuild project
+                new codepipeline_actions.CodeBuildAction({
+                    actionName: "Website",
+                    project: new codebuild.PipelineProject(this, "BuildWebsite", {
+                        projectName: "Website",
+                        buildSpec: codebuild.BuildSpec.fromSourceFilename(
+                            // "./infra/buildspec.yml"
+                            "./nextjs-static-webapp-sample/buildspec.yml"
+                        ),
+                    }),
+                    input: outputSources,
+                    outputs: [outputWebsite],
+                }),
+            ],
+        });
+
 
 
         return pipeline;

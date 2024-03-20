@@ -81,7 +81,6 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
                     actionName: 'GitHub_Source',
                     owner: 'dkmostafa',
                     repo: 'dev-samples',
-                    // oauthToken: "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",
                     oauthToken: SecretValue.secretsManager("GitHubToken"),
                     output: outputSources,
                     branch: 'main', // default: 'master'

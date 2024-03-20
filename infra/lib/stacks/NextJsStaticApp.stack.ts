@@ -1,16 +1,9 @@
-import {SecretValue, Stack, StackProps} from "aws-cdk-lib";
+import {Stack, StackProps} from "aws-cdk-lib";
 import {Construct} from "constructs";
 import {
     IS3CloudFrontStaticWebHostingConstructProps,
     S3CloudFrontStaticWebHostingConstruct
 } from "../constructs/s3CloudFrontStaticWebHosting.construct";
-import {Pipeline} from "aws-cdk-lib/aws-codepipeline";
-
-import * as codepipeline_actions from 'aws-cdk-lib/aws-codepipeline-actions';
-import * as codepipeline from 'aws-cdk-lib/aws-codepipeline';
-import * as codebuild from 'aws-cdk-lib/aws-codebuild';
-
-
 export class NextJsStaticAppStack extends Stack{
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, props);

@@ -14,11 +14,16 @@ phases:
       - npm install -g typescript
       - cd nextjs-static-webapp-sample
       - npm install
+      - echo Dependency Installed
+
   build:
     commands:
       - echo Build started on `date`
       - echo Compiling the Node.js code
+      - cd nextjs-static-webapp-sample
       - npm run build
+      - echo Next App is built successfully
+
 artifacts:
   files:
-    - out/**/*
+    - nextjs-static-webapp-sample/out/**/*

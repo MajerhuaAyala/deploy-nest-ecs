@@ -83,7 +83,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
                     repo: 'dev-samples',
                     oauthToken: SecretValue.secretsManager("GitHubToken"),
                     output: outputSources,
-                    branch: 'main', // default: 'master'
+                    branch: 'next-js-static-branch',
                     trigger:GitHubTrigger.WEBHOOK
                 })
             ]

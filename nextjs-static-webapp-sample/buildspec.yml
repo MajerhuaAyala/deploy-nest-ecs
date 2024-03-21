@@ -20,7 +20,6 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Compiling the Node.js code
-      - cd nextjs-static-webapp-sample
       - npm run build
       - echo Next App is built successfully
 

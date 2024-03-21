@@ -7,7 +7,7 @@ env:
 phases:
   install:
     runtime-versions:
-      nodejs: 18
+      nodejs: 21.1.0
     commands:
       - echo Installing dependency...
       - npm install -g next

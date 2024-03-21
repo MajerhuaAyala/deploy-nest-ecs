@@ -4,7 +4,7 @@ import {Duration, RemovalPolicy, SecretValue} from "aws-cdk-lib";
 import {AllowedMethods, Distribution, SecurityPolicyProtocol, ViewerProtocolPolicy} from "aws-cdk-lib/aws-cloudfront";
 import {S3Origin} from "aws-cdk-lib/aws-cloudfront-origins";
 import {Artifact, Pipeline} from "aws-cdk-lib/aws-codepipeline";
-import {GitHubSourceAction, GitHubTrigger} from "aws-cdk-lib/aws-codepipeline-actions";
+import {CodeBuildAction, GitHubSourceAction, GitHubTrigger} from "aws-cdk-lib/aws-codepipeline-actions";
 import * as codepipeline_actions from "aws-cdk-lib/aws-codepipeline-actions";
 import * as codebuild from "aws-cdk-lib/aws-codebuild";
 
@@ -69,51 +69,41 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         const outputSources : Artifact = new Artifact();
         const outputWebsite :Artifact= new Artifact();
 
-
         const pipeline : Pipeline = new Pipeline(this, 'MyFirstPipeline', {
             pipelineName: 'MyPipeline',
         });
 
+        const sourceAction : GitHubSourceAction =   new GitHubSourceAction({
+            actionName: 'GitHub_Source',
+            owner: 'dkmostafa',
+            repo: 'dev-samples',
+            oauthToken: SecretValue.secretsManager("GitHubToken"),
+            output: outputSources,
+            branch: 'next-js-static-branch', // default: 'master'
+            trigger:GitHubTrigger.WEBHOOK
+        })
+
+        const buildAction : CodeBuildAction =  new codepipeline_actions.CodeBuildAction({
+                actionName: "Website",
+                project: new codebuild.PipelineProject(this, "BuildWebsite", {
+                    projectName: "Website",
+                    buildSpec: codebuild.BuildSpec.fromSourceFilename("./nextjs-static-webapp-sample/buildspec.yml"),
+                }),
+                input: outputSources,
+                outputs: [outputWebsite],
+            });
+
         pipeline.addStage({
             stageName:"Source",
-            actions:[
-                new GitHubSourceAction({
-                    actionName: 'GitHub_Source',
-                    owner: 'dkmostafa',
-                    repo: 'dev-samples',
-                    oauthToken: SecretValue.secretsManager("GitHubToken"),
-                    output: outputSources,
-                    branch: 'next-js-static-branch',
-                    trigger:GitHubTrigger.WEBHOOK
-                })
-            ]
+            actions:[sourceAction]
         });
 
         pipeline.addStage({
             stageName: "Build",
-            actions: [
-                // AWS CodePipeline action to run CodeBuild project
-                new codepipeline_actions.CodeBuildAction({
-                    actionName: "Website",
-                    project: new codebuild.PipelineProject(this, "BuildWebsite", {
-                        projectName: "Website",
-                        buildSpec: codebuild.BuildSpec.fromSourceFilename(
-                            // "./infra/buildspec.yml"
-                            "./nextjs-static-webapp-sample/buildspec.yml"
-                        ),
-                    }),
-                    input: outputSources,
-                    outputs: [outputWebsite],
-                }),
-            ],
+            actions: [buildAction],
         });
 
-
-
         return pipeline;
-
-
-
 
     }
 

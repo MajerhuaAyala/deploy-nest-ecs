@@ -9,6 +9,7 @@ phases:
     runtime-versions:
       nodejs: 21.1.0
     commands:
+      - echo node --version
       - echo Installing dependency...
       - npm install -g next
       - npm install -g typescript

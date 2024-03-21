@@ -88,6 +88,9 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
                 project: new codebuild.PipelineProject(this, "BuildWebsite", {
                     projectName: "Website",
                     buildSpec: codebuild.BuildSpec.fromSourceFilename("./nextjs-static-webapp-sample/buildspec.yml"),
+                    environment:{
+                        buildImage:codebuild.LinuxBuildImage.STANDARD_5_0
+                    }
                 }),
                 input: outputSources,
                 outputs: [outputWebsite],

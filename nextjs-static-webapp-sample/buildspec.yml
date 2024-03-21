@@ -5,7 +5,7 @@ phases:
     runtime-versions:
       nodejs: 14.x
     commands:
-      - echo  Nodejs version : ` node --version `
+      - echo  Nodejs version  ` node --version `
       - echo Installing dependency...
       - npm install -g next
       - npm install -g typescript

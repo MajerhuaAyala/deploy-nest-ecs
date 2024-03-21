@@ -22,4 +22,4 @@ phases:
 artifacts:
   files:
     - '**/*'
-  base-directory: 'nextjs-static-webapp-sample'
+  base-directory: 'nextjs-static-webapp-sample/out'

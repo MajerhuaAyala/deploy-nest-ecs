@@ -22,4 +22,5 @@ phases:
 
 artifacts:
   files:
-    - out/**/*
+    - '**/*'
+  base-directory: 'out'

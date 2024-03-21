@@ -6,6 +6,8 @@ env:
 
 phases:
   install:
+    runtime-versions:
+      nodejs: 18-alpine
     commands:
       - echo node --version
       - echo Installing dependency...

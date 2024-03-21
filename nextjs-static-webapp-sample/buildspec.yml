@@ -12,6 +12,7 @@ phases:
       - echo Installing dependency...
       - npm install -g next
       - npm install -g typescript
+      - cd nextjs-static-webapp-sample
       - npm install
   build:
     commands:

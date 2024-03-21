@@ -1,15 +1,11 @@
 version: 0.2
 
-env:
-  variables:
-    NODE_ENV: "production"
-
 phases:
   install:
     runtime-versions:
-      nodejs: 18.x
+      nodejs: latest
     commands:
-      - echo node --version
+      - echo ` node --version `
       - echo Installing dependency...
       - npm install -g next
       - npm install -g typescript

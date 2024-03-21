@@ -19,7 +19,6 @@ phases:
       - echo Compiling the Node.js code
       - npm run build
       - echo Next App is built successfully
-
 artifacts:
   files:
     - 'nextjs-static-webapp-sample/out/*'

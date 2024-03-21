@@ -26,4 +26,4 @@ phases:
 
 artifacts:
   files:
-    - nextjs-static-webapp-sample/out/**/*
+    - out/**/*

@@ -12,6 +12,7 @@ phases:
       - cd nextjs-static-webapp-sample
       - npm install
       - echo Dependency Installed
+
   build:
     commands:
       - echo Build started on `date`
@@ -21,5 +22,5 @@ phases:
 
 artifacts:
   files:
-    - '/out/*'
-  base-directory: 'nextjs-static-webapp-sample'
+    - 'nextjs-static-webapp-sample/out/*'
+#  base-directory: 'out'

@@ -89,7 +89,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
                     projectName: "Website",
                     buildSpec: codebuild.BuildSpec.fromSourceFilename("./nextjs-static-webapp-sample/buildspec.yml"),
                     environment:{
-                        buildImage:codebuild.LinuxBuildImage.STANDARD_5_0
+                        buildImage:codebuild.LinuxBuildImage.STANDARD_7_0
                     }
                 }),
                 input: outputSources,

@@ -21,5 +21,6 @@ phases:
       - echo Next App is built successfully
 artifacts:
   files:
-    - 'nextjs-static-webapp-sample/out/*'
-#  base-directory: 'out'
+    - '**/*'
+#    - 'nextjs-static-webapp-sample/out/*'
+  base-directory: 'nextjs-static-webapp-sample/out'

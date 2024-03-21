@@ -28,7 +28,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         const bucket = this.createS3Bucket(_props.s3BucketConfig);
         const cloudFrontDistribution :Distribution= this.createCloudFrontDistribution(_props.cloudFrontDistribution,bucket);
 
-        const pipeline  = this.buildingS3BucketPipeline();
+        const pipeline  = this.buildingS3BucketPipeline(bucket);
 
     }
     private createS3Bucket(_props:IS3BucketConfig){
@@ -64,37 +64,43 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         return distribution;
     }
 
-    private buildingS3BucketPipeline(){
+    private buildingS3BucketPipeline(webSiteS3Bucket:Bucket) {
 
-        const outputSources : Artifact = new Artifact();
-        const outputWebsite :Artifact= new Artifact();
+        const outputSources: Artifact = new Artifact();
+        const outputWebsite: Artifact = new Artifact();
 
-        const pipeline : Pipeline = new Pipeline(this, 'MyFirstPipeline', {
+        const pipeline: Pipeline = new Pipeline(this, 'MyFirstPipeline', {
             pipelineName: 'MyPipeline',
         });
 
-        const sourceAction : GitHubSourceAction =   new GitHubSourceAction({
+        const sourceAction: GitHubSourceAction = new GitHubSourceAction({
             actionName: 'GitHub_Source',
             owner: 'dkmostafa',
             repo: 'dev-samples',
             oauthToken: SecretValue.secretsManager("GitHubToken"),
             output: outputSources,
             branch: 'next-js-static-branch', // default: 'master'
-            trigger:GitHubTrigger.WEBHOOK
+            trigger: GitHubTrigger.WEBHOOK
         })
 
-        const buildAction : CodeBuildAction =  new codepipeline_actions.CodeBuildAction({
-                actionName: "Website",
-                project: new codebuild.PipelineProject(this, "BuildWebsite", {
-                    projectName: "Website",
-                    buildSpec: codebuild.BuildSpec.fromSourceFilename("./nextjs-static-webapp-sample/buildspec.yml"),
-                    environment:{
-                        buildImage:codebuild.LinuxBuildImage.STANDARD_7_0
-                    }
-                }),
-                input: outputSources,
-                outputs: [outputWebsite],
-            });
+        const buildAction: CodeBuildAction = new codepipeline_actions.CodeBuildAction({
+            actionName: "Website",
+            project: new codebuild.PipelineProject(this, "BuildWebsite", {
+                projectName: "Website",
+                buildSpec: codebuild.BuildSpec.fromSourceFilename("./nextjs-static-webapp-sample/buildspec.yml"),
+                environment: {
+                    buildImage: codebuild.LinuxBuildImage.STANDARD_7_0
+                }
+            }),
+            input: outputSources,
+            outputs: [outputWebsite],
+        });
+
+        const deploymentAction =new codepipeline_actions.S3DeployAction({
+            actionName:"S3WebDeploy",
+            input: outputWebsite,
+            bucket: webSiteS3Bucket,
+        })
 
         pipeline.addStage({
             stageName:"Source",
@@ -105,6 +111,11 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
             stageName: "Build",
             actions: [buildAction],
         });
+
+        pipeline.addStage({
+            stageName:"S3Deploy",
+            actions:[deploymentAction]
+        })
 
         return pipeline;
 

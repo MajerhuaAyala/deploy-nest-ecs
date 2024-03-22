@@ -15,6 +15,11 @@ interface IS3BucketConfig{
 interface ICloudFrontDistribution{
     cloudFrontId:string,
 }
+
+interface IPipelineConfig{
+
+}
+
 export interface IS3CloudFrontStaticWebHostingConstructProps{
     s3BucketConfig:IS3BucketConfig,
     cloudFrontDistribution:ICloudFrontDistribution
@@ -28,7 +33,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         const bucket = this.createS3Bucket(_props.s3BucketConfig);
         const cloudFrontDistribution :Distribution= this.createCloudFrontDistribution(_props.cloudFrontDistribution,bucket);
 
-        const pipeline  = this.buildingS3BucketPipeline(bucket);
+        const pipeline  = this.buildingS3BucketPipeline(bucket,cloudFrontDistribution);
 
     }
     private createS3Bucket(_props:IS3BucketConfig){
@@ -64,7 +69,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
         return distribution;
     }
 
-    private buildingS3BucketPipeline(webSiteS3Bucket:Bucket) {
+    private buildingS3BucketPipeline(webSiteS3Bucket:Bucket,cloudFrontDistribution:Distribution) {
 
         const outputSources: Artifact = new Artifact();
         const outputWebsite: Artifact = new Artifact();
@@ -100,7 +105,34 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
             actionName:"S3WebDeploy",
             input: outputWebsite,
             bucket: webSiteS3Bucket,
-        })
+            runOrder:1,
+        });
+
+        // Create the build project that will invalidate the cache
+        const invalidateBuildProject = new codebuild.PipelineProject(this, `InvalidateProject`, {
+            buildSpec: codebuild.BuildSpec.fromObject({
+                version: '0.2',
+                phases: {
+                    build: {
+                        commands:[
+                            'aws cloudfront create-invalidation --distribution-id ${CLOUDFRONT_ID} --paths "/*"',
+                            // Choose whatever files or paths you'd like, or all files as specified here
+                        ],
+                    },
+                },
+            }),
+            environmentVariables: {
+                CLOUDFRONT_ID: { value: cloudFrontDistribution.distributionId },
+            },
+        });
+
+        const invalidateCloudFrontAction = new codepipeline_actions.CodeBuildAction({
+            actionName: 'InvalidateCache',
+            project: invalidateBuildProject,
+            input: outputWebsite,
+            runOrder: 2,
+        });
+
 
         pipeline.addStage({
             stageName:"Source",
@@ -114,8 +146,13 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
 
         pipeline.addStage({
             stageName:"S3Deploy",
-            actions:[deploymentAction]
-        })
+            actions:[deploymentAction,invalidateCloudFrontAction]
+        });
+
+        // pipeline.addStage({
+        //     stageName:"Invalidate Cloudfront Cache",
+        //     actions:[invalidateBuildProject]
+        // })
 
         return pipeline;
 

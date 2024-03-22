@@ -15,13 +15,24 @@ export class NextJsStaticAppStack extends Stack{
             },
             cloudFrontDistribution:{
                 cloudFrontId:"nextjs-static-website"
+            },
+            pipeLineConfig:{
+                account:this.account,
+                pipelineName:"NextjsStaticAppSamplePipeline",
+                pipelineId:"NextjsStaticAppSamplePipeline",
+                githubConfig:{
+                    owner:"dkmostafa",
+                    repo:"dev-samples",
+                    oAuthSecretManagerName:"GitHubToken",
+                    branch:"next-js-static-branch"
+                },
+                buildSpecLocation:"./nextjs-static-webapp-sample/buildspec.yml"
             }
         }
 
         this.createS3BucketWithCloudFrontDistribution(staticS3BucketDistBucket);
 
     }
-
 
     private createS3BucketWithCloudFrontDistribution(_props:IS3CloudFrontStaticWebHostingConstructProps) {
         const s3BucketWithCFD :S3CloudFrontStaticWebHostingConstruct = new S3CloudFrontStaticWebHostingConstruct(this,"S3CloudFrontStaticWebHostingConstruct",_props);

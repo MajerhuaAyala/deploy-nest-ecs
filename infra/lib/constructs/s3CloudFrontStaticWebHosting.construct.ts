@@ -4,9 +4,9 @@ import {Duration, RemovalPolicy, SecretValue} from "aws-cdk-lib";
 import {AllowedMethods, Distribution, SecurityPolicyProtocol, ViewerProtocolPolicy} from "aws-cdk-lib/aws-cloudfront";
 import {S3Origin} from "aws-cdk-lib/aws-cloudfront-origins";
 import {Artifact, Pipeline} from "aws-cdk-lib/aws-codepipeline";
-import {CodeBuildAction, GitHubSourceAction, GitHubTrigger} from "aws-cdk-lib/aws-codepipeline-actions";
-import * as codepipeline_actions from "aws-cdk-lib/aws-codepipeline-actions";
-import * as codebuild from "aws-cdk-lib/aws-codebuild";
+import {CodeBuildAction, GitHubSourceAction, GitHubTrigger, S3DeployAction} from "aws-cdk-lib/aws-codepipeline-actions";
+import {PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {BuildSpec, LinuxBuildImage, PipelineProject} from "aws-cdk-lib/aws-codebuild";
 
 interface IS3BucketConfig{
     bucketId:string,
@@ -15,28 +15,35 @@ interface IS3BucketConfig{
 interface ICloudFrontDistribution{
     cloudFrontId:string,
 }
-
 interface IPipelineConfig{
-
+    account:string,
+    pipelineName:string,
+    pipelineId:string,
+    githubConfig:{
+        owner:string,
+        repo:string,
+        oAuthSecretManagerName:string,
+        branch:string
+    },
+    buildSpecLocation:string,
 }
 
 export interface IS3CloudFrontStaticWebHostingConstructProps{
     s3BucketConfig:IS3BucketConfig,
-    cloudFrontDistribution:ICloudFrontDistribution
+    cloudFrontDistribution:ICloudFrontDistribution,
+    pipeLineConfig:IPipelineConfig
 }
 
 export class S3CloudFrontStaticWebHostingConstruct extends Construct{
-    constructor(scope: Construct, id: string,_props:IS3CloudFrontStaticWebHostingConstructProps) {
+    constructor(scope: Construct, id: string,_props:IS3CloudFrontStaticWebHostingConstructProps){
         super(scope, id);
 
-
-        const bucket = this.createS3Bucket(_props.s3BucketConfig);
+        const bucket:Bucket = this.createS3Bucket(_props.s3BucketConfig);
         const cloudFrontDistribution :Distribution= this.createCloudFrontDistribution(_props.cloudFrontDistribution,bucket);
-
-        const pipeline  = this.buildingS3BucketPipeline(bucket,cloudFrontDistribution);
+        const pipeline:Pipeline  = this.buildingS3BucketPipeline(_props.pipeLineConfig,bucket,cloudFrontDistribution);
 
     }
-    private createS3Bucket(_props:IS3BucketConfig){
+    private createS3Bucket(_props:IS3BucketConfig):Bucket{
         const bucket : Bucket = new Bucket(this, _props.bucketId, {
             bucketName:  _props.bucketName,
             blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
@@ -46,7 +53,7 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
 
         return bucket;
     }
-    private createCloudFrontDistribution(_props:ICloudFrontDistribution,s3Bucket:Bucket){
+    private createCloudFrontDistribution(_props:ICloudFrontDistribution,s3Bucket:Bucket):Distribution{
         const distribution = new Distribution(this, _props.cloudFrontId, {
             defaultBehavior: {
                 allowedMethods: AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
@@ -68,55 +75,45 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
 
         return distribution;
     }
-
-    private buildingS3BucketPipeline(webSiteS3Bucket:Bucket,cloudFrontDistribution:Distribution) {
+    private buildingS3BucketPipeline(_props:IPipelineConfig,webSiteS3Bucket:Bucket,cloudFrontDistribution:Distribution):Pipeline {
 
         const outputSources: Artifact = new Artifact();
         const outputWebsite: Artifact = new Artifact();
 
-        const pipeline: Pipeline = new Pipeline(this, 'MyFirstPipeline', {
-            pipelineName: 'MyPipeline',
-        });
-
         const sourceAction: GitHubSourceAction = new GitHubSourceAction({
             actionName: 'GitHub_Source',
-            owner: 'dkmostafa',
-            repo: 'dev-samples',
-            oauthToken: SecretValue.secretsManager("GitHubToken"),
+            owner: _props.githubConfig.owner,
+            repo: _props.githubConfig.repo,
+            oauthToken: SecretValue.secretsManager(_props.githubConfig.oAuthSecretManagerName),
             output: outputSources,
-            branch: 'next-js-static-branch', // default: 'master'
+            branch: _props.githubConfig.branch,
             trigger: GitHubTrigger.WEBHOOK
         })
-
-        const buildAction: CodeBuildAction = new codepipeline_actions.CodeBuildAction({
-            actionName: "Website",
-            project: new codebuild.PipelineProject(this, "BuildWebsite", {
-                projectName: "Website",
-                buildSpec: codebuild.BuildSpec.fromSourceFilename("./nextjs-static-webapp-sample/buildspec.yml"),
+        const buildAction: CodeBuildAction = new CodeBuildAction({
+            actionName: "BuildWebsite",
+            project: new PipelineProject(this, "BuildWebsite", {
+                projectName: "BuildWebsite",
+                buildSpec: BuildSpec.fromSourceFilename(_props.buildSpecLocation),
                 environment: {
-                    buildImage: codebuild.LinuxBuildImage.STANDARD_7_0
+                    buildImage: LinuxBuildImage.STANDARD_7_0
                 }
             }),
             input: outputSources,
             outputs: [outputWebsite],
         });
-
-        const deploymentAction =new codepipeline_actions.S3DeployAction({
+        const deploymentAction : S3DeployAction =new S3DeployAction({
             actionName:"S3WebDeploy",
             input: outputWebsite,
             bucket: webSiteS3Bucket,
             runOrder:1,
         });
-
-        // Create the build project that will invalidate the cache
-        const invalidateBuildProject = new codebuild.PipelineProject(this, `InvalidateProject`, {
-            buildSpec: codebuild.BuildSpec.fromObject({
+        const invalidateBuildProject = new PipelineProject(this, `InvalidateProject`, {
+            buildSpec: BuildSpec.fromObject({
                 version: '0.2',
                 phases: {
                     build: {
                         commands:[
                             'aws cloudfront create-invalidation --distribution-id ${CLOUDFRONT_ID} --paths "/*"',
-                            // Choose whatever files or paths you'd like, or all files as specified here
                         ],
                     },
                 },
@@ -125,34 +122,37 @@ export class S3CloudFrontStaticWebHostingConstruct extends Construct{
                 CLOUDFRONT_ID: { value: cloudFrontDistribution.distributionId },
             },
         });
-
-        const invalidateCloudFrontAction = new codepipeline_actions.CodeBuildAction({
+        const distributionArn = `arn:aws:cloudfront::${_props.account}:distribution/${cloudFrontDistribution.distributionId}`;
+        invalidateBuildProject.addToRolePolicy(new PolicyStatement({
+            resources: [distributionArn],
+            actions: [
+                'cloudfront:CreateInvalidation',
+            ],
+        }));
+        const invalidateCloudFrontAction: CodeBuildAction = new CodeBuildAction({
             actionName: 'InvalidateCache',
             project: invalidateBuildProject,
             input: outputWebsite,
             runOrder: 2,
         });
 
-
-        pipeline.addStage({
-            stageName:"Source",
-            actions:[sourceAction]
+        const pipeline: Pipeline = new Pipeline(this,_props.pipelineId , {
+            pipelineName: _props.pipelineName,
+            stages:[
+                {
+                    stageName:"Source",
+                    actions:[sourceAction],
+                },
+                {
+                    stageName:"Build",
+                    actions:[buildAction],
+                },
+                {
+                    stageName:"S3Deploy",
+                    actions:[deploymentAction,invalidateCloudFrontAction],
+                }
+            ]
         });
-
-        pipeline.addStage({
-            stageName: "Build",
-            actions: [buildAction],
-        });
-
-        pipeline.addStage({
-            stageName:"S3Deploy",
-            actions:[deploymentAction,invalidateCloudFrontAction]
-        });
-
-        // pipeline.addStage({
-        //     stageName:"Invalidate Cloudfront Cache",
-        //     actions:[invalidateBuildProject]
-        // })
 
         return pipeline;
 

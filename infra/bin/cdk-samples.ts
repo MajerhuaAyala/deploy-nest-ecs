@@ -2,6 +2,7 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import {NextJsStaticAppStack} from "../lib/stacks/NextJsStaticApp.stack";
+import {NestJsAppStack} from "../lib/stacks/NestJsApp.stack";
 
 const app = new cdk.App();
 
@@ -14,3 +15,6 @@ new NextJsStaticAppStack(app,"NextJsStaticAppStack", {
     env:accountEnvironment
 });
 
+new NestJsAppStack(app,"NestJsAppStack",{
+    env:accountEnvironment
+})

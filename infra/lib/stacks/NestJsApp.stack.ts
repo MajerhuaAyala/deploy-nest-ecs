@@ -1,17 +1,47 @@
-import {Stack, StackProps} from "aws-cdk-lib";
-
+import {SecretValue, Stack, StackProps} from "aws-cdk-lib";
 import {Repository} from "aws-cdk-lib/aws-ecr"
 import {Role,ServicePrincipal} from "aws-cdk-lib/aws-iam";
-
 import {FargateTaskDefinition,ContainerImage,AwsLogDriver,Protocol,Cluster} from "aws-cdk-lib/aws-ecs"
 import {Vpc} from "aws-cdk-lib/aws-ec2";
 import {ApplicationLoadBalancedFargateService} from "aws-cdk-lib/aws-ecs-patterns";
 import {Construct} from "constructs";
+import {Artifact, Pipeline} from "aws-cdk-lib/aws-codepipeline";
+import {CodeBuildAction, GitHubSourceAction, GitHubTrigger} from "aws-cdk-lib/aws-codepipeline-actions";
+import {BuildSpec, LinuxBuildImage, PipelineProject} from "aws-cdk-lib/aws-codebuild";
+
+interface IPipelineConfig{
+    pipelineName:string,
+    pipelineId:string,
+    githubConfig:{
+        owner:string,
+        repo:string,
+        oAuthSecretManagerName:string,
+        branch:string
+    },
+    buildSpecLocation:string,
+
+}
 export class NestJsAppStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, props);
-        this.createEcrImage();
-        this.createEcs();
+
+
+        const pipeLineConfig : IPipelineConfig = {
+            pipelineId:"nestJsBuildingApp",
+            pipelineName:"nestJsBuildingApp",
+            githubConfig:{
+                owner:"dkmostafa",
+                repo:"dev-samples",
+                oAuthSecretManagerName:"GitHubToken",
+                branch:"nestjs-application"
+            },
+            buildSpecLocation:"buildspec.yml"
+
+        }
+
+        this.createBuildPipeline(pipeLineConfig);
+        // this.createEcrImage();
+        // this.createEcs();
     }
 
 
@@ -81,6 +111,56 @@ export class NestJsAppStack extends Stack {
             }
         );
 
+
+
+
+    }
+
+    createBuildPipeline(_props:IPipelineConfig)
+    {
+        const outputSources: Artifact = new Artifact();
+        const outputWebsite: Artifact = new Artifact();
+
+        const sourceAction: GitHubSourceAction = new GitHubSourceAction({
+            actionName: 'GitHub_Source',
+            owner: _props.githubConfig.owner,
+            repo: _props.githubConfig.repo,
+            oauthToken: SecretValue.secretsManager(_props.githubConfig.oAuthSecretManagerName),
+            output: outputSources,
+            branch: _props.githubConfig.branch,
+            trigger: GitHubTrigger.WEBHOOK
+        })
+
+        const buildAction: CodeBuildAction = new CodeBuildAction({
+            actionName: "BuildWebsite",
+            project: new PipelineProject(this, "BuildWebsite", {
+                projectName: "BuildWebsite",
+                buildSpec: BuildSpec.fromSourceFilename(_props.buildSpecLocation),
+                environment: {
+                    buildImage: LinuxBuildImage.STANDARD_7_0
+                }
+            }),
+            input: outputSources,
+            outputs: [outputWebsite],
+        });
+
+        const pipeline: Pipeline = new Pipeline(this,_props.pipelineId , {
+            pipelineName: _props.pipelineName,
+            stages:[
+                {
+                    stageName:"Source",
+                    actions:[sourceAction],
+                },
+                // {
+                //     stageName:"Build",
+                //     actions:[buildAction],
+                // },
+                // {
+                //     stageName:"S3Deploy",
+                //     actions:[deploymentAction,invalidateCloudFrontAction],
+                // }
+            ]
+        });
 
 
 

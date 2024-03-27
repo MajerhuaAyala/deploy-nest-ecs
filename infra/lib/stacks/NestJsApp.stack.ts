@@ -170,7 +170,7 @@ export class NestJsAppStack extends Stack {
     createEcrImage(){
         const repository = new Repository(this, 'NestJsBackendApp', {
             imageScanOnPush: true,
-            repositoryName:`NestJsBackendAppRepo-${this.account}`
+            repositoryName:`nestjs-backend-app-ecr-${this.account}`
         });
 
         return repository

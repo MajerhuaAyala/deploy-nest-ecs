@@ -25,6 +25,8 @@ export class NestJsAppStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, props);
 
+        const ecrRepo = this.createEcrImage();
+
 
         const pipeLineConfig : IPipelineConfig = {
             pipelineId:"nestJsBuildingApp",
@@ -40,7 +42,6 @@ export class NestJsAppStack extends Stack {
         }
 
         this.createBuildPipeline(pipeLineConfig);
-        // this.createEcrImage();
         // this.createEcs();
     }
 

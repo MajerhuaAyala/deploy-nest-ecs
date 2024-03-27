@@ -1,0 +1,50 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
+      - REPOSITORY_URI=227778490402.dkr.ecr.eu-west-1.amazonaws.com/nestjs-backend-app-ecr-227778490402 #todo : add the repo uri as a environment variable for the codepipline build
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $REPOSITORY_URI:latest .
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+  post_build:
+
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+
+#version: 0.2
+#
+#phases:
+#  install:
+#    runtime-versions:
+#      nodejs: latest
+#    commands:
+#      - echo  Nodejs version  ` node --version `
+#      - echo Installing dependency...
+#      - npm i -g @nestjs/cli
+#      - npm run build
+#      - cd nextjs-static-webapp-sample
+#      - npm install
+#      - echo Dependency Installed
+#
+#  build:
+#    commands:
+#      - echo Build started on `date`
+#      - echo Compiling the Node.js code
+#      - npm run build
+#      - echo Next App is built successfully
+#artifacts:
+#  files:
+#    - '**/*'
+#  base-directory: 'nextjs-static-webapp-sample/out'

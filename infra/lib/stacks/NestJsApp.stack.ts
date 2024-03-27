@@ -151,10 +151,10 @@ export class NestJsAppStack extends Stack {
                     stageName:"Source",
                     actions:[sourceAction],
                 },
-                // {
-                //     stageName:"Build",
-                //     actions:[buildAction],
-                // },
+                {
+                    stageName:"Build",
+                    actions:[buildAction],
+                },
                 // {
                 //     stageName:"S3Deploy",
                 //     actions:[deploymentAction,invalidateCloudFrontAction],
@@ -169,6 +169,7 @@ export class NestJsAppStack extends Stack {
     createEcrImage(){
         const repository = new Repository(this, 'NestJsBackendApp', {
             imageScanOnPush: true,
+            repositoryName:`NestJsBackendAppRepo-${this.account}`
         });
 
         return repository

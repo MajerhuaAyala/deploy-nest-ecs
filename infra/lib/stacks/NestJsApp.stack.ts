@@ -37,7 +37,7 @@ export class NestJsAppStack extends Stack {
                 oAuthSecretManagerName:"GitHubToken",
                 branch:"nestjs-application"
             },
-            buildSpecLocation:"buildspec.yml"
+            buildSpecLocation:"./nestjs-app/buildspec.yml"
 
         }
 

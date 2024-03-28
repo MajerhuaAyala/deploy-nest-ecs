@@ -11,7 +11,7 @@ COPY package*.json ./
 RUN npm install
 
 # Bundle app source
-COPY ../nestjs-backend .
+COPY ../nestjs-app .
 
 ## Copy the .env and .env.development files
 #COPY .env .env.development ./

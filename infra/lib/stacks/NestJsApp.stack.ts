@@ -1,6 +1,6 @@
 import {SecretValue, Stack, StackProps} from "aws-cdk-lib";
 import {Repository} from "aws-cdk-lib/aws-ecr"
-import {Role,ServicePrincipal} from "aws-cdk-lib/aws-iam";
+import {Effect, PolicyDocument, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {FargateTaskDefinition,ContainerImage,AwsLogDriver,Protocol,Cluster} from "aws-cdk-lib/aws-ecs"
 import {Vpc} from "aws-cdk-lib/aws-ec2";
 import {ApplicationLoadBalancedFargateService} from "aws-cdk-lib/aws-ecs-patterns";
@@ -25,7 +25,7 @@ export class NestJsAppStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, props);
 
-        const ecrRepo = this.createEcrImage();
+        const ecrRepoRole = this.createEcrImage();
 
 
         const pipeLineConfig : IPipelineConfig = {
@@ -34,11 +34,10 @@ export class NestJsAppStack extends Stack {
             githubConfig:{
                 owner:"dkmostafa",
                 repo:"dev-samples",
-                oAuthSecretManagerName:"GitHubToken",
+                oAuthSecretManagerName:"GitHubTokend",
                 branch:"nestjs-application"
             },
             buildSpecLocation:"./nestjs-app/buildspec.yml"
-
         }
 
         this.createBuildPipeline(pipeLineConfig);
@@ -130,23 +129,33 @@ export class NestJsAppStack extends Stack {
             output: outputSources,
             branch: _props.githubConfig.branch,
             trigger: GitHubTrigger.WEBHOOK
-        })
+        });
+
+        const buildProject= new PipelineProject(this, "BuildWebsite", {
+            projectName: "BuildWebsite",
+            buildSpec: BuildSpec.fromSourceFilename(_props.buildSpecLocation),
+            environment: {
+                buildImage: LinuxBuildImage.STANDARD_7_0
+            }
+        });
+
+        buildProject.addToRolePolicy(new PolicyStatement({
+            resources:["*"],
+            actions: ['ecr:*'],
+            effect: Effect.ALLOW
+        }))
 
         const buildAction: CodeBuildAction = new CodeBuildAction({
             actionName: "BuildWebsite",
-            project: new PipelineProject(this, "BuildWebsite", {
-                projectName: "BuildWebsite",
-                buildSpec: BuildSpec.fromSourceFilename(_props.buildSpecLocation),
-                environment: {
-                    buildImage: LinuxBuildImage.STANDARD_7_0
-                }
-            }),
+            project:buildProject ,
             input: outputSources,
             outputs: [outputWebsite],
         });
 
+
         const pipeline: Pipeline = new Pipeline(this,_props.pipelineId , {
             pipelineName: _props.pipelineName,
+            // role:role,
             stages:[
                 {
                     stageName:"Source",
@@ -163,16 +172,15 @@ export class NestJsAppStack extends Stack {
             ]
         });
 
-
+        return pipeline;
 
     }
 
-    createEcrImage(){
+    createEcrImage():Repository{
         const repository = new Repository(this, 'NestJsBackendApp', {
             imageScanOnPush: true,
             repositoryName:`nestjs-backend-app-ecr-${this.account}`
         });
-
-        return repository
+        return repository;
     }
 }

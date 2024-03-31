@@ -1,13 +1,20 @@
 import {SecretValue, Stack, StackProps} from "aws-cdk-lib";
 import {Repository} from "aws-cdk-lib/aws-ecr"
-import {Effect, PolicyDocument, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
-import {FargateTaskDefinition,ContainerImage,AwsLogDriver,Protocol,Cluster} from "aws-cdk-lib/aws-ecs"
+import {Effect, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
+import {
+    FargateTaskDefinition,
+    ContainerImage,
+    AwsLogDriver,
+    Protocol,
+    Cluster, CpuArchitecture, OperatingSystemFamily,
+} from "aws-cdk-lib/aws-ecs"
 import {Vpc} from "aws-cdk-lib/aws-ec2";
 import {ApplicationLoadBalancedFargateService} from "aws-cdk-lib/aws-ecs-patterns";
 import {Construct} from "constructs";
 import {Artifact, Pipeline} from "aws-cdk-lib/aws-codepipeline";
 import {CodeBuildAction, GitHubSourceAction, GitHubTrigger} from "aws-cdk-lib/aws-codepipeline-actions";
 import {BuildSpec, LinuxBuildImage, PipelineProject} from "aws-cdk-lib/aws-codebuild";
+import {EcsApplicationConstruct, IEcsApplicationConstruct} from "../constructs/ecsApplication.construct";
 
 interface IPipelineConfig{
     pipelineName:string,
@@ -25,80 +32,120 @@ export class NestJsAppStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, props);
 
-        const ecrRepoRole = this.createEcrImage();
-
-
-        const pipeLineConfig : IPipelineConfig = {
-            pipelineId:"nestJsBuildingApp",
-            pipelineName:"nestJsBuildingApp",
-            githubConfig:{
-                owner:"dkmostafa",
-                repo:"dev-samples",
-                oAuthSecretManagerName:"GitHubTokend",
-                branch:"nestjs-application"
+        const ecsApplicationConstructProps :IEcsApplicationConstruct ={
+            account:this.account,
+            region:this.region,
+            ecrConfig:{
+                name:"nestjs-app-sample",
+                id:"nestjs-app-sample",
             },
-            buildSpecLocation:"./nestjs-app/buildspec.yml"
-        }
+            ecsConfig:{
+                executionRole:{
+                    name:"fargate-test-task-execution-role",
+                    id:"fargate-test-task-execution-role"
+                },
+                taskDefinitionId:"sample-task-id",
+                containerConfig:{
+                    id:"sample-task-container",
+                    name:"sample-task-container"
+                },
+            },
+            pipelineConfig:{
+                    pipelineId:"nestJsBuildingApp",
+                    pipelineName:"nestJsBuildingApp",
+                    githubConfig:{
+                        owner:"dkmostafa",
+                        repo:"dev-samples",
+                        oAuthSecretManagerName:"GitHubTokend",
+                        branch:"nestjs-application"
+                    },
+                    buildSpecLocation:"./nestjs-app/buildspec.yml"
+                }
+            }
 
-        this.createBuildPipeline(pipeLineConfig);
+        const ecsApplicationConstruct: EcsApplicationConstruct = new EcsApplicationConstruct(this,"ecsApplicationConstruct",ecsApplicationConstructProps)
+
+        // const repository:Repository = this.createEcrImage();
+        //
+        // repository.repositoryName;
+        //
         // this.createEcs();
+        //
+        //
+        //
+        // const pipeLineConfig : IPipelineConfig = {
+        //     pipelineId:"nestJsBuildingApp",
+        //     pipelineName:"nestJsBuildingApp",
+        //     githubConfig:{
+        //         owner:"dkmostafa",
+        //         repo:"dev-samples",
+        //         oAuthSecretManagerName:"GitHubTokend",
+        //         branch:"nestjs-application"
+        //     },
+        //     buildSpecLocation:"./nestjs-app/buildspec.yml"
+        // }
+        //
+        // this.createBuildPipeline(pipeLineConfig);
     }
 
 
     createEcs(){
-        const taskRole = new Role(this, "fargate-test-task-role", {
-            assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com")
+        const executionRole:Role = new Role(this, "fargate-test-task-role", {
+            assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+            roleName:"taskDefinitionExecutionRole"
         });
-        //first create a task role
-        //then create a task definition
-        //then create a container
-        //add logs to the cloudwatch
-        //add a health check to the load balancer
 
-        const taskDefinition = new FargateTaskDefinition(
+
+        executionRole.addToPolicy(new PolicyStatement({
+            resources:["*"],
+            actions: [
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            effect: Effect.ALLOW
+        }));
+
+        const taskDefinition : FargateTaskDefinition = new FargateTaskDefinition(
             this,
             "fargate-task-definition",
             {
-                taskRole: taskRole,
-                executionRole: taskRole
-            }
+                executionRole:executionRole,
+                runtimePlatform:{
+                    cpuArchitecture:CpuArchitecture.X86_64,
+                    operatingSystemFamily:OperatingSystemFamily.LINUX
+                },
+            },
         );
 
         const container = taskDefinition.addContainer(
             "fargate-test-task-container",
             {
-                image: ContainerImage.fromRegistry(
-                    "227778490402.dkr.ecr.eu-west-1.amazonaws.com/nestjsappstack-nestjsbackendappc7dcee4e-q3c8i6tomtcn:latest"
-                ),
-                // logging: new AwsLogDriver({
-                //     streamPrefix: "fargate-test-task-log-prefix"
-                // }),
+                image: ContainerImage.fromRegistry("227778490402.dkr.ecr.eu-west-1.amazonaws.com/nestjs-backend-app-ecr-227778490402:latest"),
+                containerName:"testContainer",
+                essential:true,
                 portMappings:[
                     {
                         containerPort:8080,
                         protocol:Protocol.TCP
                     },
-
-                ]
+                ],
+                logging:new AwsLogDriver({
+                    streamPrefix: "ecs-logs"
+                })
                 // healthCheck:""
             }
         );
 
         const vpc = new Vpc(this, "fargate-test-task-vpc", {
-            maxAzs: 2,
-            natGateways: 1
-        });
-
-
-        container.addPortMappings({
-            containerPort: 8080,
-            hostPort: 8080,
-            protocol: Protocol.TCP,
         });
 
         const cluster = new Cluster(this, "fargate-test-task-cluster", { vpc });
 
-        new ApplicationLoadBalancedFargateService(
+       const applicationLoadBalancer =  new ApplicationLoadBalancedFargateService(
             this,
             "MyFargateService",
             {
@@ -107,10 +154,10 @@ export class NestJsAppStack extends Stack {
                 desiredCount: 1, // Default is 1
                 taskDefinition: taskDefinition,
                 memoryLimitMiB: 512, // Default is 512
-                publicLoadBalancer: true // Default is false
-            }
+                publicLoadBalancer: true, // Default is false
+                loadBalancerName:"nestJsAppLoadBalancer",
+            },
         );
-
 
 
 
@@ -152,10 +199,10 @@ export class NestJsAppStack extends Stack {
             outputs: [outputWebsite],
         });
 
+        //add manual approval for the pipelieline here
 
         const pipeline: Pipeline = new Pipeline(this,_props.pipelineId , {
             pipelineName: _props.pipelineName,
-            // role:role,
             stages:[
                 {
                     stageName:"Source",

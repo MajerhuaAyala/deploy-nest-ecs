@@ -40,6 +40,7 @@ export class NestJsAppStack extends Stack {
                 id:"nestjs-app-sample",
             },
             ecsConfig:{
+                clusterName:"SampleCluster",
                 executionRole:{
                     name:"fargate-test-task-execution-role",
                     id:"fargate-test-task-execution-role"

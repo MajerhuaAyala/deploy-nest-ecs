@@ -4,6 +4,6 @@ import { Injectable } from '@nestjs/common';
 export class AppService {
   getHello(): string {
     console.log("hello world from the app service")
-    return 'Hello World updated now!';
+    return 'Hello World updated now 123456!';
   }
 }

@@ -12,7 +12,8 @@ This repository contains the projects featured in my Dev.to articles. Each proje
 
 ## Articles
 - [https://dev.to/dkmostafa/effortless-deployment-nextjs-static-webapp-on-s3-cloudfront-with-aws-cdk-and-codepipeline-tutorial-37i1](#) - Effortless Deployment: Next.js Static WebApp on S3 & CloudFront with AWS CDK and CodePipeline Tutorial
-- 
+- [https://dev.to/dkmostafa/a-guide-to-deploying-nestjs-applications-with-aws-codepipeline-and-ecs-fargate-20fe](#) - A Guide to Deploying Nest.js Applications with AWS CodePipeline and ECS Fargate
+
 
 Feel free to explore each branch for the corresponding project's code, explanations, and instructions on usage.
 
